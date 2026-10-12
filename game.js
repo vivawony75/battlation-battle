@@ -20,6 +20,11 @@ class BattlerationGame {
     this.turnCount = 1;
     this.isFiringAnimation = false;
 
+    // 플레이어 : 적군 승률 동적 무작위 설정 (7:3 ~ 3:7, 즉 30% ~ 70% 사이)
+    const pPct = Math.round(30 + Math.random() * 40); // 30 ~ 70% 사이 정수
+    this.playerWinRate = pPct / 100;
+    this.enemyWinRate = (100 - pPct) / 100;
+
     // 턴당 고정 포격 발수: 3발씩 교대 사격
     this.salvoPerTurn = 3;
 
@@ -86,7 +91,39 @@ class BattlerationGame {
     this.loop = this.loop.bind(this);
     requestAnimationFrame(this.loop);
 
+    const pPercent = Math.round(this.playerWinRate * 100);
+    const ePercent = 100 - pPercent;
+    this.updateWinRateBadge();
     this.log('작전 참모: 배틀레이션 전장 가동. 대대본부(4x3), 화기중대, 1~3중대, 기관총 3개 진지를 배치하십시오.', 'system');
+    this.log(`[전력 분석 보고] 이번 전장 전략 승률: 아군 ${pPercent}% : 적군 ${ePercent}% (7:3 ~ 3:7 동적 밸런스 매칭)`, 'system');
+  }
+
+  updateWinRateBadge() {
+    const badge = document.getElementById('winRateBadge');
+    if (!badge) return;
+    const pPct = Math.round(this.playerWinRate * 100);
+    const ePct = 100 - pPct;
+
+    let diffText = '호각 (5:5)';
+    let badgeColor = '#38bdf8';
+    if (pPct >= 60) {
+      diffText = '아군 우세';
+      badgeColor = '#34d399';
+    } else if (pPct <= 40) {
+      diffText = '적군 우세';
+      badgeColor = '#f87171';
+    } else if (pPct > 50) {
+      diffText = '아군 근소 우세';
+      badgeColor = '#6ee7b7';
+    } else if (pPct < 50) {
+      diffText = '적군 근소 우세';
+      badgeColor = '#fca5a5';
+    }
+
+    badge.textContent = `전력 승률 ${pPct}:${ePct} (${diffText})`;
+    badge.style.borderColor = badgeColor;
+    badge.style.color = badgeColor;
+    badge.title = `이번 전장의 동적 승률 밸런스: 아군 ${pPct}% vs 적군 ${ePct}% (7:3 ~ 3:7 범위 무작위 설정)`;
   }
 
   // 그리드 초기화
@@ -711,8 +748,8 @@ class BattlerationGame {
         let isBlindSpot = false;
 
         if (isHitTarget && cell.isBlindSpot) {
-          // 승률 7:3 밸런스: 아군 포격의 적 사각지대 돌파율 70% (적 도탄 방어 확률 30%)
-          if (Math.random() < 0.3) {
+          // 승률 동적 밸런스 (7:3 ~ 3:7): 적 도탄 방어 성공 확률 = (1 - playerWinRate)
+          if (Math.random() < (1 - this.playerWinRate)) {
             isBlindSpot = true;
           }
         }
@@ -815,7 +852,10 @@ class BattlerationGame {
         if (nc >= 0 && nc < this.cols && nr >= 10 && nr < 20) {
           const neighbor = this.playerGrid[nr - 10][nc];
           if (neighbor.unit && !neighbor.unit.isDestroyed) {
-            this.aiSuspectQueue.push({ c: nc, r: nr });
+            // 적군 우세율(enemyWinRate)에 비례한 십자 힌트 포착 확률
+            if (Math.random() < (0.35 + this.enemyWinRate * 0.65)) {
+              this.aiSuspectQueue.push({ c: nc, r: nr });
+            }
           }
         }
       }
@@ -927,7 +967,8 @@ class BattlerationGame {
   executeEnemyTurn() {
     this.isFiringAnimation = true;
 
-    if (this.enemyFlareCooldown <= 0 && Math.random() < 0.35) {
+    const flareChance = 0.15 + (this.enemyWinRate * 0.35); // 적 우세율에 비례한 조명탄 사용 빈도 (25% ~ 40%)
+    if (this.enemyFlareCooldown <= 0 && Math.random() < flareChance) {
       const fc = Math.floor(Math.random() * this.cols);
       const fr = 10 + Math.floor(Math.random() * 10);
       this.enemyFlareCooldown = 4;
@@ -967,8 +1008,8 @@ class BattlerationGame {
         let isBlindSpot = false;
 
         if (isHitTarget && cell.isBlindSpot) {
-          // 승률 7:3 밸런스: 아군 사각지대 방어율 70% (적 포탄 도탄 방어 성공)
-          if (Math.random() < 0.7) {
+          // 승률 동적 밸런스 (7:3 ~ 3:7): 아군 사각지대 도탄 방어 성공 확률 = playerWinRate
+          if (Math.random() < this.playerWinRate) {
             isBlindSpot = true;
           }
         }
@@ -1098,8 +1139,9 @@ class BattlerationGame {
 
       this.log(`[피격 경보!] (${col + 1}, ${String.fromCharCode(65 + row)}): 아군 [${unit.name}] 피격 파괴!`, 'enemy-action');
 
-      // 승률 7:3 밸런싱: 60% 확률로 즉시 사냥 큐에 등록, 40%는 전선 분산 탐색
-      if (Math.random() < 0.6) {
+      // 승률 동적 밸런스 (7:3 ~ 3:7): 적군 우세율(enemyWinRate)에 비례하여 집중 사냥 큐 등록 확률 결정
+      const aiFocusRate = 0.35 + (this.enemyWinRate * 0.55); // 51% ~ 73%
+      if (Math.random() < aiFocusRate) {
         const dirs = [{ dc: 0, dr: -1 }, { dc: 0, dr: 1 }, { dc: -1, dr: 0 }, { dc: 1, dr: 0 }];
         dirs.forEach(d => {
           const nc = col + d.dc;
@@ -1132,6 +1174,9 @@ class BattlerationGame {
       }
     }
 
+    const pPct = Math.round(this.playerWinRate * 100);
+    const ePct = 100 - pPct;
+
     if (isVictory) {
       this.sfx.playVictory();
       this.log('★☆★ [작전 대성공] 적 대대본부 완파! 아군 전선 완전 장악 및 최종 승리! ★☆★', 'kill');
@@ -1141,7 +1186,7 @@ class BattlerationGame {
         titleEl.textContent = '🏆 VICTORY - 작전 승리';
       }
       const descEl = document.getElementById('modalResultDesc');
-      if (descEl) descEl.textContent = '적 사령부 및 주력 부대를 완전히 무력화하여 전투에서 승리했습니다!';
+      if (descEl) descEl.textContent = `적 사령부 및 주력 부대를 완전히 무력화하여 전투에서 승리했습니다! (전장 전력 승률비: 아군 ${pPct}% vs 적군 ${ePct}%)`;
     } else {
       this.sfx.playDefeat();
       this.log('▲▼▲ [작전 실패] 아군 대대본부 완파. 통신 두절 및 최종 패배. ▲▼▲', 'enemy-action');
@@ -1151,7 +1196,7 @@ class BattlerationGame {
         titleEl.textContent = '💀 DEFEAT - 작전 실패';
       }
       const descEl = document.getElementById('modalResultDesc');
-      if (descEl) descEl.textContent = '아군 사령부와 전력이 무력화되어 작전에 실패했습니다.';
+      if (descEl) descEl.textContent = `아군 사령부와 전력이 무력화되어 작전에 실패했습니다. (전장 전력 승률비: 아군 ${pPct}% vs 적군 ${ePct}%)`;
     }
 
     document.getElementById('resTurnCount').textContent = this.turnCount;
