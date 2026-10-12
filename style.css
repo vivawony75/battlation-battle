@@ -1,0 +1,801 @@
+/* 배틀레이션 (Battleration) - 밀리터리 전술 콘솔 스타일시트 */
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@500;700;900&family=Noto+Sans+KR:wght@400;600;700&display=swap');
+
+:root {
+  --bg-primary: #0a0d12;
+  --bg-panel: rgba(14, 21, 30, 0.92);
+  --bg-card: rgba(22, 33, 46, 0.85);
+  --border-color: #1e3347;
+  --border-active: #00e5ff;
+  --text-main: #d3e3f0;
+  --text-dim: #6c8ba4;
+  --text-highlight: #00ffcc;
+  
+  --color-friendly: #10b981;
+  --color-enemy: #ef4444;
+  --color-warning: #f59e0b;
+  --color-mountain: #78716c;
+  --color-flare: #fbbf24;
+  --color-splash: #d97706;
+
+  --accent-cyan: #06b6d4;
+  --accent-lime: #84cc16;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body {
+  background-color: var(--bg-primary);
+  background-image: 
+    radial-gradient(ellipse at 50% 0%, rgba(6, 182, 212, 0.15), transparent 70%),
+    radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.08), transparent 50%),
+    linear-gradient(rgba(10, 13, 18, 0.85), rgba(10, 13, 18, 0.98)),
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 229, 255, 0.015) 3px);
+  color: var(--text-main);
+  font-family: 'Noto Sans KR', 'Share Tech Mono', monospace, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+/* 상단 작전 HUD 헤더 */
+.top-header {
+  background: linear-gradient(180deg, #0e1724 0%, #080c13 100%);
+  border-bottom: 2px solid #1a2c3f;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  padding: 10px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  z-index: 10;
+}
+
+.logo-area {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.badge-tag {
+  background: rgba(0, 229, 255, 0.15);
+  border: 1px solid var(--border-active);
+  color: var(--border-active);
+  font-family: 'Orbitron', monospace;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  letter-spacing: 1px;
+}
+
+.main-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #fff;
+  text-shadow: 0 0 12px rgba(0, 229, 255, 0.6);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.main-title span {
+  font-size: 14px;
+  color: var(--accent-cyan);
+  font-family: 'Noto Sans KR', sans-serif;
+  font-weight: 600;
+}
+
+.header-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.turn-indicator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-card);
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.turn-pill {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 4px;
+  letter-spacing: 1.5px;
+  transition: all 0.3s ease;
+}
+
+.turn-pill.player {
+  background: rgba(16, 185, 129, 0.25);
+  color: #34d399;
+  border: 1px solid #10b981;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
+.turn-pill.enemy {
+  background: rgba(239, 68, 68, 0.25);
+  color: #f87171;
+  border: 1px solid #ef4444;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+}
+
+.turn-pill.placement {
+  background: rgba(245, 158, 11, 0.25);
+  color: #fbbf24;
+  border: 1px solid #f59e0b;
+}
+
+.turn-counter {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 버튼 공통 스타일 */
+.btn {
+  font-family: 'Noto Sans KR', 'Share Tech Mono', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--border-active);
+  background: rgba(0, 229, 255, 0.12);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(80%);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #0e7490 0%, #0891b2 100%);
+  border-color: #22d3ee;
+  color: #fff;
+  font-weight: 700;
+}
+
+.btn-fire {
+  background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%);
+  border-color: #f87171;
+  color: #fff;
+  font-family: 'Orbitron', 'Noto Sans KR', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 1px;
+  padding: 10px 22px;
+  box-shadow: 0 0 16px rgba(220, 38, 38, 0.4);
+}
+
+.btn-fire:hover:not(:disabled) {
+  background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+  box-shadow: 0 0 24px rgba(239, 68, 68, 0.7);
+}
+
+.btn-flare {
+  background: linear-gradient(135deg, #b45309 0%, #d97706 100%);
+  border-color: #fbbf24;
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 0 14px rgba(217, 119, 6, 0.4);
+}
+
+.btn-flare:hover:not(:disabled) {
+  background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.6);
+}
+
+.btn-flare.active-mode {
+  border-color: #fef08a;
+  background: #f59e0b;
+  box-shadow: 0 0 20px #f59e0b;
+  color: #000;
+  animation: flarePulse 1s infinite alternate;
+}
+
+@keyframes flarePulse {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.05); }
+}
+
+/* 메인 레이아웃 */
+.main-container {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 290px 1fr 290px;
+  gap: 16px;
+  padding: 16px 20px;
+  max-width: 1750px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* 사이드 패널 */
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.panel-title {
+  font-family: 'Orbitron', 'Noto Sans KR', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-highlight);
+  letter-spacing: 1px;
+  border-bottom: 1px solid #1a2c3f;
+  padding-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel-title .badge {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: 'Share Tech Mono', monospace;
+}
+
+/* 부대 상태 카드 */
+.unit-card {
+  background: var(--bg-card);
+  border: 1px solid #1e3347;
+  border-radius: 6px;
+  padding: 12px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.25s ease;
+}
+
+.unit-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 3px;
+  background: #334155;
+  transition: background 0.3s ease;
+}
+
+.unit-card.active-friendly::before {
+  background: var(--color-friendly);
+}
+
+.unit-card.active-enemy::before {
+  background: var(--color-enemy);
+}
+
+.unit-card.destroyed {
+  opacity: 0.45;
+  filter: grayscale(100%);
+  background: rgba(15, 23, 42, 0.6);
+  border-color: #334155;
+}
+
+.unit-card.destroyed::after {
+  content: '완파 (DESTROYED)';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-10deg);
+  background: rgba(185, 28, 28, 0.85);
+  color: #fff;
+  font-family: 'Orbitron', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 3px;
+  border: 1px solid #ef4444;
+  letter-spacing: 1px;
+  pointer-events: none;
+}
+
+.unit-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.unit-name {
+  font-weight: 700;
+  font-size: 13px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.unit-size-tag {
+  font-size: 10px;
+  color: var(--accent-cyan);
+  background: rgba(6, 182, 212, 0.12);
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-family: 'Share Tech Mono', monospace;
+}
+
+.unit-status-text {
+  font-size: 11px;
+  font-family: 'Share Tech Mono', monospace;
+  color: var(--text-highlight);
+}
+
+/* HP 및 칸 게이지 */
+.cell-gauge-grid {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.gauge-3x3 { grid-template-columns: repeat(3, 1fr); width: 84px; }
+.gauge-3x2 { grid-template-columns: repeat(3, 1fr); width: 84px; }
+.gauge-2x2 { grid-template-columns: repeat(2, 1fr); width: 56px; }
+
+.cell-gauge-item {
+  height: 14px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 2px;
+  position: relative;
+  transition: all 0.3s;
+}
+
+.cell-gauge-item.alive {
+  background: #059669;
+  border-color: #10b981;
+  box-shadow: 0 0 4px rgba(16, 185, 129, 0.5);
+}
+
+.cell-gauge-item.alive-enemy {
+  background: #b91c1c;
+  border-color: #ef4444;
+  box-shadow: 0 0 4px rgba(239, 68, 68, 0.5);
+}
+
+.cell-gauge-item.damaged {
+  background: #d97706;
+  border-color: #f59e0b;
+}
+
+.cell-gauge-item.dead {
+  background: #1e1e24;
+  border-color: #3f3f46;
+}
+
+.unit-perks {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+/* 전투 구역 중앙 영역 */
+.battlefield-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+.battlefield-info-bar {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(15, 23, 42, 0.85);
+  padding: 8px 18px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  font-size: 13px;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-item .val {
+  color: var(--text-highlight);
+  font-weight: 700;
+  font-family: 'Share Tech Mono', monospace;
+}
+
+/* 캔버스 컨테이너 */
+.canvas-container {
+  position: relative;
+  border-radius: 8px;
+  border: 2px solid #1a3249;
+  background: #06090e;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 30px rgba(6, 182, 212, 0.1);
+  overflow: hidden;
+  cursor: crosshair;
+}
+
+#battleCanvas {
+  display: block;
+}
+
+/* 캔버스 위 오버레이 공지 (완파 알림 등) */
+.toast-overlay {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.toast-msg {
+  background: rgba(15, 23, 42, 0.95);
+  border: 2px solid #ef4444;
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-family: 'Orbitron', 'Noto Sans KR', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  box-shadow: 0 0 25px rgba(239, 68, 68, 0.7);
+  animation: toastPop 3s forwards;
+}
+
+@keyframes toastPop {
+  0% { transform: scale(0.7); opacity: 0; }
+  15% { transform: scale(1.08); opacity: 1; }
+  25% { transform: scale(1); opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-20px); }
+}
+
+/* 하단 컨트롤 패널 */
+.battlefield-controls {
+  width: 100%;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.controls-left, .controls-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.salvo-counter-box {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid #1e3a5f;
+  border-radius: 6px;
+  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.salvo-label {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.salvo-number {
+  font-family: 'Orbitron', monospace;
+  font-size: 18px;
+  font-weight: 900;
+  color: #38bdf8;
+  letter-spacing: 1px;
+}
+
+/* 배치 모드 툴바 */
+.placement-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid #1e3a5f;
+  padding: 8px 14px;
+  border-radius: 6px;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.placement-units-list {
+  display: flex;
+  gap: 8px;
+}
+
+.placement-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #cbd5e1;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.placement-btn:hover {
+  border-color: #38bdf8;
+  color: #fff;
+}
+
+.placement-btn.selected {
+  background: #0284c7;
+  border-color: #38bdf8;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+}
+
+.placement-btn.placed {
+  opacity: 0.5;
+  border-style: dashed;
+}
+
+/* 전투 로그 패널 (우측) */
+.log-container {
+  flex: 1;
+  background: rgba(11, 17, 26, 0.95);
+  border: 1px solid #182838;
+  border-radius: 6px;
+  padding: 10px;
+  font-family: 'Share Tech Mono', 'Noto Sans KR', monospace;
+  font-size: 11px;
+  overflow-y: auto;
+  max-height: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.log-entry {
+  line-height: 1.4;
+  border-left: 2px solid #334155;
+  padding-left: 6px;
+}
+
+.log-entry.player-action {
+  border-left-color: #10b981;
+  color: #a7f3d0;
+}
+
+.log-entry.enemy-action {
+  border-left-color: #ef4444;
+  color: #fca5a5;
+}
+
+.log-entry.hit {
+  color: #fbbf24;
+  font-weight: 700;
+}
+
+.log-entry.kill {
+  color: #f87171;
+  font-weight: 700;
+  background: rgba(239, 68, 68, 0.1);
+  padding: 2px 6px;
+}
+
+.log-entry.system {
+  border-left-color: #38bdf8;
+  color: #7dd3fc;
+}
+
+/* 범례 안내 박스 */
+.legend-box {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-color {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* 모달 팝업 */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 7, 18, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.modal-backdrop.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-window {
+  background: #0f172a;
+  border: 2px solid #1e3a5f;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 650px;
+  padding: 24px;
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(6, 182, 212, 0.2);
+  transform: translateY(20px);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.modal-backdrop.show .modal-window {
+  transform: translateY(0);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #1e293b;
+  padding-bottom: 10px;
+}
+
+.modal-title {
+  font-family: 'Orbitron', 'Noto Sans KR', sans-serif;
+  font-size: 18px;
+  color: #38bdf8;
+  font-weight: 700;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.modal-close:hover {
+  color: #fff;
+}
+
+.modal-body {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #cbd5e1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.modal-rule-section {
+  background: #1e293b;
+  border-left: 3px solid #38bdf8;
+  padding: 10px 14px;
+  border-radius: 0 6px 6px 0;
+}
+
+.modal-rule-title {
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+/* 승리 / 패배 모달 스타일 */
+.victory-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 28px;
+  font-weight: 900;
+  color: #10b981;
+  text-shadow: 0 0 20px rgba(16, 185, 129, 0.8);
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.defeat-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 28px;
+  font-weight: 900;
+  color: #ef4444;
+  text-shadow: 0 0 20px rgba(239, 68, 68, 0.8);
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.stat-card {
+  background: #1e293b;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  text-align: center;
+}
+
+.stat-card .label {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.stat-card .value {
+  font-family: 'Orbitron', monospace;
+  font-size: 20px;
+  font-weight: 700;
+  color: #38bdf8;
+  margin-top: 4px;
+}

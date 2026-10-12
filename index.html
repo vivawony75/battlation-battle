@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>배틀레이션 (Battleration) - 턴제 포격 전략 보드 게임</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* 4x3 대대본부 및 2칸 기관총 진지 게이지 스타일 오버라이드 */
+    .main-container {
+      grid-template-columns: 310px 1fr 310px !important;
+    }
+    .panel {
+      max-height: calc(100vh - 80px) !important;
+      overflow-y: auto !important;
+      padding: 12px !important;
+      gap: 10px !important;
+    }
+    .panel::-webkit-scrollbar {
+      width: 5px;
+    }
+    .panel::-webkit-scrollbar-thumb {
+      background: #1e3a5f;
+      border-radius: 3px;
+    }
+    .gauge-4x3 {
+      grid-template-columns: repeat(4, 1fr) !important;
+      width: 88px !important;
+    }
+    .gauge-2x1 {
+      grid-template-columns: repeat(2, 1fr) !important;
+      width: 44px !important;
+    }
+    .placement-toolbar {
+      flex-wrap: wrap;
+      gap: 8px !important;
+    }
+    .placement-units-list {
+      flex-wrap: wrap !important;
+      gap: 6px !important;
+    }
+    .placement-btn {
+      padding: 5px 9px !important;
+      font-size: 11px !important;
+    }
+
+    /* 완료된 전장 화면 유지 및 게임 종료 질문 모달 */
+    #resultModal {
+      background: rgba(3, 7, 18, 0.4) !important;
+      backdrop-filter: blur(2px) !important;
+    }
+    #resultModal .modal-window {
+      background: rgba(15, 23, 42, 0.95) !important;
+      border: 2px solid #38bdf8 !important;
+      box-shadow: 0 16px 50px rgba(0, 0, 0, 0.9) !important;
+      max-width: 580px !important;
+    }
+    .game-over-prompt {
+      margin: 16px 0 14px 0;
+      padding: 14px 16px;
+      background: rgba(30, 41, 59, 0.85);
+      border-radius: 8px;
+      border: 1px solid #3b82f6;
+    }
+    .game-over-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+    .btn-exit {
+      background: #334155 !important;
+      color: #f8fafc !important;
+      border: 1px solid #64748b !important;
+      font-size: 15px !important;
+      padding: 12px 24px !important;
+      border-radius: 6px !important;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.2s ease;
+    }
+    .btn-exit:hover {
+      background: #dc2626 !important;
+      border-color: #ef4444 !important;
+      color: #fff !important;
+    }
+    .btn-view-board {
+      background: #1e293b !important;
+      color: #38bdf8 !important;
+      border: 1px solid #0284c7 !important;
+      font-size: 13px !important;
+      padding: 9px 18px !important;
+      border-radius: 6px !important;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+    .btn-view-board:hover {
+      background: #0284c7 !important;
+      color: #fff !important;
+    }
+    #endGameBar {
+      display: none;
+      position: fixed;
+      top: 55px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.96);
+      border: 2px solid #00e5ff;
+      border-radius: 30px;
+      padding: 8px 22px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.85);
+      z-index: 1000;
+      align-items: center;
+      gap: 12px;
+    }
+    #endGameBar.show {
+      display: flex !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 상단 전술 헤더 -->
+  <header class="top-header">
+    <div class="logo-area">
+      <span class="badge-tag">TACTICAL ARTILLERY</span>
+      <h1 class="main-title">BATTLERATION <span>배틀레이션</span></h1>
+    </div>
+
+    <div class="header-status-bar">
+      <div class="turn-indicator">
+        <span id="turnBadge" class="turn-pill placement">부대 배치 단계</span>
+        <span class="turn-counter">TURN <strong id="turnCountVal">1</strong></span>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button id="btnSoundToggle" class="btn" title="사운드 On/Off">
+        <span id="soundIcon">🔊</span> 사운드
+      </button>
+      <button id="btnRules" class="btn btn-primary" title="작전 지침 및 규칙">
+        📜 작전 지침서
+      </button>
+    </div>
+  </header>
+
+  <!-- 메인 게임 컨테이너 -->
+  <main class="main-container">
+
+    <!-- 좌측 사이드바: 아군 부대 상태 -->
+    <aside class="panel">
+      <div class="panel-title">
+        <span>아군 부대 현황 (FRIENDLY)</span>
+        <span class="badge">HQ & UNITS</span>
+      </div>
+
+      <!-- 대대본부 (4x3) -->
+      <div id="card-p-hq" class="unit-card active-friendly">
+        <div class="unit-card-header">
+          <span class="unit-name">대대본부 <span class="unit-size-tag">4x3</span></span>
+          <span class="unit-status-text">배치 대기</span>
+        </div>
+        <div class="cell-gauge-grid gauge-4x3"></div>
+        <div class="unit-perks">핵심 사령부 (각 칸 1회 피격 시 파괴)<br>적 대대본부 완파 시 승리!</div>
+      </div>
+
+      <!-- 화기중대 (3x2) -->
+      <div id="card-p-mortar" class="unit-card active-friendly">
+        <div class="unit-card-header">
+          <span class="unit-name">화기중대 <span class="unit-size-tag">3x2</span></span>
+          <span class="unit-status-text">배치 대기</span>
+        </div>
+        <div class="cell-gauge-grid gauge-3x2"></div>
+        <div class="unit-perks">박격포 주력 (매 턴 3발 교대 집중 포격)</div>
+      </div>
+
+      <!-- 1중대 (2x2) -->
+      <div id="card-p-alpha" class="unit-card active-friendly">
+        <div class="unit-card-header">
+          <span class="unit-name">1중대 (알파) <span class="unit-size-tag">2x2</span></span>
+          <span class="unit-status-text">배치 대기</span>
+        </div>
+        <div class="cell-gauge-grid gauge-2x2"></div>
+        <div class="unit-perks">정찰 조명탄 지원 특화</div>
+      </div>
+
+      <!-- 2중대 (2x2) -->
+      <div id="card-p-bravo" class="unit-card active-friendly">
+        <div class="unit-card-header">
+          <span class="unit-name">2중대 (브라보) <span class="unit-size-tag">2x2</span></span>
+          <span class="unit-status-text">배치 대기</span>
+        </div>
+        <div class="cell-gauge-grid gauge-2x2"></div>
+        <div class="unit-perks">정찰 조명탄 지원 특화</div>
+      </div>
+
+      <!-- 3중대 (2x2) -->
+      <div id="card-p-charlie" class="unit-card active-friendly">
+        <div class="unit-card-header">
+          <span class="unit-name">3중대 (찰리) <span class="unit-size-tag">2x2</span></span>
+          <span class="unit-status-text">배치 대기</span>
+        </div>
+        <div class="cell-gauge-grid gauge-2x2"></div>
+        <div class="unit-perks">정찰 조명탄 지원 특화</div>
+      </div>
+
+      <!-- 기관총 1진지 (2칸) -->
+      <div id="card-p-mg1" class="unit-card active-friendly">
+        <div class="unit-card-header">
+          <span class="unit-name">기관총 1진지 <span class="unit-size-tag">2칸</span></span>
+          <span class="unit-status-text">배치 대기</span>
+        </div>
+        <div class="cell-gauge-grid gauge-2x1"></div>
+        <div class="unit-perks">전방 기관총 방어 거점</div>
+      </div>
+
+      <!-- 기관총 2진지 (2칸) -->
+      <div id="card-p-mg2" class="unit-card active-friendly">
+        <div class="unit-card-header">
+          <span class="unit-name">기관총 2진지 <span class="unit-size-tag">2칸</span></span>
+          <span class="unit-status-text">배치 대기</span>
+        </div>
+        <div class="cell-gauge-grid gauge-2x1"></div>
+        <div class="unit-perks">전방 기관총 방어 거점</div>
+      </div>
+
+      <!-- 기관총 3진지 (2칸) -->
+      <div id="card-p-mg3" class="unit-card active-friendly">
+        <div class="unit-card-header">
+          <span class="unit-name">기관총 3진지 <span class="unit-size-tag">2칸</span></span>
+          <span class="unit-status-text">배치 대기</span>
+        </div>
+        <div class="cell-gauge-grid gauge-2x1"></div>
+        <div class="unit-perks">전방 기관총 방어 거점</div>
+      </div>
+    </aside>
+
+    <!-- 중앙 전장 뷰 -->
+    <section class="battlefield-wrapper">
+      <div class="battlefield-info-bar">
+        <div class="info-item">
+          <span>좌표 (COORD):</span>
+          <span id="cursorCoord" class="val">--</span>
+        </div>
+        <div class="info-item">
+          <span>전술 그리드:</span>
+          <span class="val">30 × 20 (총 600칸)</span>
+        </div>
+        <div class="info-item">
+          <span id="subHelpText" style="color: var(--accent-cyan);">하단 아군 영역(10~19행)에 부대를 배치하십시오.</span>
+        </div>
+      </div>
+
+      <div class="canvas-container">
+        <canvas id="battleCanvas"></canvas>
+        <div id="toastOverlay" class="toast-overlay"></div>
+      </div>
+
+      <!-- 배치 모드 툴바 -->
+      <div id="placementToolbar" class="placement-toolbar">
+        <div class="placement-units-list" id="placementUnitsList"></div>
+        <div style="display: flex; gap: 8px;">
+          <button id="btnRotate" class="btn" title="부대 회전 (단축키 R)">🔄 회전 (R)</button>
+          <button id="btnAutoPlace" class="btn" title="무작위 자동 배치">🎲 자동배치</button>
+          <button id="btnStartBattle" class="btn btn-fire" disabled>⚔ 작전 개시</button>
+        </div>
+      </div>
+
+      <!-- 전투 모드 툴바 -->
+      <div id="battleControls" class="battlefield-controls" style="display: none;">
+        <div class="controls-left">
+          <div class="salvo-counter-box">
+            <span class="salvo-label">지정된 포격 좌표</span>
+            <span id="salvoCountVal" class="salvo-number">0 / 3 발</span>
+          </div>
+          <button id="btnFlare" class="btn btn-flare">💡 조명탄 정찰</button>
+          <button id="btnClearTargets" class="btn">✖ 타겟 초기화</button>
+        </div>
+
+        <div class="controls-right">
+          <button id="btnFire" class="btn btn-fire" disabled>🔥 3발 일제 포격 (FIRE)</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 우측 사이드바: 적군 정찰 현황 및 전황 로그 -->
+    <aside class="panel">
+      <div class="panel-title">
+        <span>적군 전황 (ENEMY INTEL)</span>
+        <span class="badge">RADAR</span>
+      </div>
+
+      <!-- 적 부대 추리 상태 카드들 -->
+      <div id="card-e-hq" class="unit-card active-enemy">
+        <div class="unit-card-header">
+          <span class="unit-name">적 대대본부 <span class="unit-size-tag">4x3</span></span>
+          <span class="unit-status-text">은폐 중</span>
+        </div>
+        <div class="cell-gauge-grid gauge-4x3">
+          <div class="cell-gauge-item alive-enemy"></div><div class="cell-gauge-item alive-enemy"></div><div class="cell-gauge-item alive-enemy"></div><div class="cell-gauge-item alive-enemy"></div>
+          <div class="cell-gauge-item alive-enemy"></div><div class="cell-gauge-item alive-enemy"></div><div class="cell-gauge-item alive-enemy"></div><div class="cell-gauge-item alive-enemy"></div>
+          <div class="cell-gauge-item alive-enemy"></div><div class="cell-gauge-item alive-enemy"></div><div class="cell-gauge-item alive-enemy"></div><div class="cell-gauge-item alive-enemy"></div>
+        </div>
+      </div>
+
+      <div id="card-e-mortar" class="unit-card active-enemy">
+        <div class="unit-card-header">
+          <span class="unit-name">적 화기중대 <span class="unit-size-tag">3x2</span></span>
+          <span class="unit-status-text">은폐 중</span>
+        </div>
+        <div class="cell-gauge-grid gauge-3x2">
+          <div class="cell-gauge-item alive-enemy"></div><div class="cell-gauge-item alive-enemy"></div><div class="cell-gauge-item alive-enemy"></div>
+          <div class="cell-gauge-item alive-enemy"></div><div class="cell-gauge-item alive-enemy"></div><div class="cell-gauge-item alive-enemy"></div>
+        </div>
+      </div>
+
+      <div id="card-e-alpha" class="unit-card active-enemy">
+        <div class="unit-card-header">
+          <span class="unit-name">적 1중대 <span class="unit-size-tag">2x2</span></span>
+          <span class="unit-status-text">은폐 중</span>
+        </div>
+        <div class="cell-gauge-grid gauge-2x2">
+          <div class="cell-gauge-item alive-enemy"></div><div class="cell-gauge-item alive-enemy"></div>
+          <div class="cell-gauge-item alive-enemy"></div><div class="cell-gauge-item alive-enemy"></div>
+        </div>
+      </div>
+
+      <div id="card-e-bravo" class="unit-card active-enemy">
+        <div class="unit-card-header">
+          <span class="unit-name">적 2중대 <span class="unit-size-tag">2x2</span></span>
+          <span class="unit-status-text">은폐 중</span>
+        </div>
+        <div class="cell-gauge-grid gauge-2x2">
+          <div class="cell-gauge-item alive-enemy"></div><div class="cell-gauge-item alive-enemy"></div>
+          <div class="cell-gauge-item alive-enemy"></div><div class="cell-gauge-item alive-enemy"></div>
+        </div>
+      </div>
+
+      <div id="card-e-charlie" class="unit-card active-enemy">
+        <div class="unit-card-header">
+          <span class="unit-name">적 3중대 <span class="unit-size-tag">2x2</span></span>
+          <span class="unit-status-text">은폐 중</span>
+        </div>
+        <div class="cell-gauge-grid gauge-2x2">
+          <div class="cell-gauge-item alive-enemy"></div><div class="cell-gauge-item alive-enemy"></div>
+          <div class="cell-gauge-item alive-enemy"></div><div class="cell-gauge-item alive-enemy"></div>
+        </div>
+      </div>
+
+      <div id="card-e-mg1" class="unit-card active-enemy">
+        <div class="unit-card-header">
+          <span class="unit-name">적 기관총 1진지 <span class="unit-size-tag">2칸</span></span>
+          <span class="unit-status-text">은폐 중</span>
+        </div>
+        <div class="cell-gauge-grid gauge-2x1">
+          <div class="cell-gauge-item alive-enemy"></div><div class="cell-gauge-item alive-enemy"></div>
+        </div>
+      </div>
+
+      <div id="card-e-mg2" class="unit-card active-enemy">
+        <div class="unit-card-header">
+          <span class="unit-name">적 기관총 2진지 <span class="unit-size-tag">2칸</span></span>
+          <span class="unit-status-text">은폐 중</span>
+        </div>
+        <div class="cell-gauge-grid gauge-2x1">
+          <div class="cell-gauge-item alive-enemy"></div><div class="cell-gauge-item alive-enemy"></div>
+        </div>
+      </div>
+
+      <div id="card-e-mg3" class="unit-card active-enemy">
+        <div class="unit-card-header">
+          <span class="unit-name">적 기관총 3진지 <span class="unit-size-tag">2칸</span></span>
+          <span class="unit-status-text">은폐 중</span>
+        </div>
+        <div class="cell-gauge-grid gauge-2x1">
+          <div class="cell-gauge-item alive-enemy"></div><div class="cell-gauge-item alive-enemy"></div>
+        </div>
+      </div>
+
+      <!-- 전술 범례 박스 -->
+      <div class="legend-box">
+        <div class="legend-item">
+          <div class="legend-color" style="background: #374151; border-color: #6b7280;"></div>
+          <span>산 (배치 불가 / 후방 사각지대 도탄 50%)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: rgba(245, 158, 11, 0.5);"></div>
+          <span>십자 흙먼지 흔적 (주변 적 유닛 탐지 힌트)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #fbbf24;"></div>
+          <span>고지대 보너스 (조명탄 스캔 반경 5x5 확장)</span>
+        </div>
+      </div>
+
+      <!-- 실시간 작전 로그 콘솔 -->
+      <div class="panel-title" style="margin-top: 8px;">
+        <span>작전 통신 로그</span>
+        <span class="badge">RADIO COMMS</span>
+      </div>
+      <div id="battleLog" class="log-container"></div>
+    </aside>
+  </main>
+
+  <!-- 작전 지침서 (규칙 모달) -->
+  <div id="rulesModal" class="modal-backdrop">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h2 class="modal-title">⚔ 배틀레이션 작전 지침서 (Game Rules)</h2>
+        <button id="btnCloseRules" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-rule-section">
+          <div class="modal-rule-title">1. 전장 및 지형 (가로 30 x 세로 20)</div>
+          <p>상단 절반(0~9행)은 적군 진영, 하단 절반(10~19행)은 아군 진영입니다.</p>
+          <p><strong>산(Mountain) 지형:</strong> 암벽 지형에는 유닛을 배치할 수 없으나 전술적 가치가 큽니다.</p>
+          <ul>
+            <li><strong>사각지대 방어:</strong> 산맥 뒤(후방)에 배치된 유닛은 포격의 사각지대가 되어 피격 시 <strong>50% 확률로 도탄(빗나감)</strong>되어 데미지를 완전히 방어합니다.</li>
+            <li><strong>고지대 관측 보너스:</strong> 산맥에 인접한 중대는 고지대 보너스를 얻어 <strong>조명탄 정찰 범위가 3x3에서 5x5로 확장</strong>됩니다.</li>
+          </ul>
+        </div>
+
+        <div class="modal-rule-section">
+          <div class="modal-rule-title">2. 부대 편성 (총 8개 부대)</div>
+          <ul>
+            <li><strong>대대본부 (4x3 / 총 12칸):</strong> 부대의 심장부. 각 칸마다 <strong>1회 피격 시 즉시 파괴</strong>됩니다.</li>
+            <li><strong>화기중대 (3x2 / 총 6칸):</strong> 주력 박격포 운용 부대.</li>
+            <li><strong>일반 중대 (1, 2, 3중대 / 각 2x2):</strong> 정찰 특화 부대. 살아있는 중대가 있을 시 조명탄 정찰 스캔 운용.</li>
+            <li><strong>기관총 진지 (1, 2, 3진지 / 각 2칸):</strong> 전방 거점 방어 및 사격 지원 진지.</li>
+          </ul>
+        </div>
+
+        <div class="modal-rule-section">
+          <div class="modal-rule-title">3. 단계별 포격 제한 시스템 (최후의 항전 규칙)</div>
+          <ul>
+            <li><strong>기본 상태:</strong> 대대본부와 화기중대 모두 생존 시 <strong>3발 일제 포격</strong>.</li>
+            <li><strong>대대본부 완파 시:</strong> 화기중대에서 <strong>2발 제한</strong>하여 발사.</li>
+            <li><strong>화기중대 완파 시:</strong> 대대본부에서 <strong>2발 제한</strong>하여 발사.</li>
+            <li><strong>대대본부 & 화기중대 둘 다 완파 시:</strong> 각 잔존 보병중대에서 <strong>1발 제한</strong>하여 발사.</li>
+            <li><strong>모든 보병중대 완파 시:</strong> 잔존 기관총 진지에서 <strong>1발</strong> 발사.</li>
+          </ul>
+        </div>
+
+        <div class="modal-rule-section">
+          <div class="modal-rule-title">4. 승리 및 게임 종료 조건</div>
+          <p style="color: #38bdf8; font-weight: 700;">위 발사 조건이 실행되지 않는 경우(모든 저항 부대 완파로 포격 능력 완전 상실 시) 게임이 종료됩니다!</p>
+          <p>적의 모든 포격 부대를 무력화시켜 발사 불능 상태로 만드는 진영이 최종 승리합니다.</p>
+        </div>
+
+        <div class="modal-rule-section">
+          <div class="modal-rule-title">5. 무기 체계 및 특수 연출 (VFX / SFX)</div>
+          <ul>
+            <li><strong>81mm 박격포 고폭탄 (대대본부/화기/보병중대):</strong> 대형 눈물방울 고폭탄 탄두 및 4엽 안정익 핀, 황금색 HE 밴드. 비행 시 꼬리 불꽃 분출 파티클과 여유롭고 웅장한 탄도 궤적, 서브베이스 지진 럼블 폭발음.</li>
+            <li><strong>기관총 진지:</strong> 포탄 대신 <strong>3연사 2회 사격 (총 6발의 황금빛 예광탄 점사)</strong> 및 웅장한 대구경 중기관총 격발음.</li>
+            <li><strong>전술 밸런스:</strong> 아군 7 : 적군 3의 최적 승률 밸런스가 적용되어 있습니다.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 결과 모달 (완료된 화면 유지 및 재도전/종료 질문) -->
+  <div id="resultModal" class="modal-backdrop">
+    <div class="modal-window" style="text-align: center;">
+      <h2 id="modalResultTitle" class="victory-title">VICTORY</h2>
+      <p id="modalResultDesc" style="color: #94a3b8; font-size: 14px;">전투 작전이 종료되었습니다.</p>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="label">작전 소요 턴수</div>
+          <div id="resTurnCount" class="value">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">총 발사 포탄</div>
+          <div id="resPlayerShots" class="value">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">포격 명중률</div>
+          <div id="resHitRate" class="value">0%</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">완파한 적 부대 수</div>
+          <div id="resKills" class="value">0</div>
+        </div>
+      </div>
+
+      <!-- 게임 종료 후 선택 질문 박스 -->
+      <div class="game-over-prompt">
+        <div style="font-size: 14px; color: #94a3b8; margin-bottom: 5px;">작전이 완료되었습니다.</div>
+        <div style="color: #38bdf8; font-size: 16px; font-weight: 700;">게임을 다시 시작하시겠습니까, 아니면 종료하시겠습니까?</div>
+      </div>
+
+      <!-- 양자택일 버튼 그룹: 다시 하기 vs 종료하기 -->
+      <div class="game-over-buttons">
+        <button id="btnRestart" class="btn btn-fire" style="font-size: 15px; padding: 12px 24px;">
+          🔄 다시 하기 (새 작전)
+        </button>
+        <button id="btnExit" class="btn-exit">
+          ⏹️ 게임 종료
+        </button>
+      </div>
+
+      <div style="margin-top: 14px;">
+        <button id="btnViewBoard" class="btn-view-board">
+          👁️ 완료된 전장 화면 자세히 살펴보기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 전장 화면 직접 관람 시 상단 고정 플로팅 바 -->
+  <div id="endGameBar">
+    <span style="color: #38bdf8; font-weight: bold; font-size: 14px;">⚔️ 작전 완료 (전장 관람 모드)</span>
+    <button id="btnBarRestart" class="btn btn-fire" style="font-size: 13px; padding: 6px 14px;">
+      🔄 다시 하기
+    </button>
+    <button id="btnBarExit" class="btn-exit" style="font-size: 13px; padding: 6px 14px;">
+      ⏹️ 게임 종료
+    </button>
+    <button id="btnBarShowModal" class="btn-view-board" style="font-size: 13px; padding: 6px 14px; margin-top: 0;">
+      📊 결과창 다시 열기
+    </button>
+  </div>
+
+  <!-- 스크립트 로드 -->
+  <script src="audio.js"></script>
+  <script src="renderer.js"></script>
+  <script src="game.js"></script>
+
+  <script>
+    // 게임 인스턴스 초기화 및 DOM 이벤트 바인딩
+    window.addEventListener('DOMContentLoaded', () => {
+      const canvas = document.getElementById('battleCanvas');
+      const game = new BattlerationGame(canvas);
+
+      // 사운드 토글
+      const btnSound = document.getElementById('btnSoundToggle');
+      btnSound.addEventListener('click', () => {
+        const isMuted = game.sfx.toggleMute();
+        document.getElementById('soundIcon').textContent = isMuted ? '🔇' : '🔊';
+        btnSound.style.opacity = isMuted ? '0.6' : '1';
+      });
+
+      // 지침서 모달
+      const rulesModal = document.getElementById('rulesModal');
+      document.getElementById('btnRules').addEventListener('click', () => {
+        rulesModal.classList.add('show');
+      });
+      document.getElementById('btnCloseRules').addEventListener('click', () => {
+        rulesModal.classList.remove('show');
+      });
+      rulesModal.addEventListener('click', (e) => {
+        if (e.target === rulesModal) rulesModal.classList.remove('show');
+      });
+
+      // 배치 컨트롤
+      document.getElementById('btnRotate').addEventListener('click', () => game.rotatePlacementUnit());
+      document.getElementById('btnAutoPlace').addEventListener('click', () => game.autoPlaceUnits(false));
+      document.getElementById('btnStartBattle').addEventListener('click', () => game.startBattle());
+
+      // 전투 컨트롤
+      document.getElementById('btnFlare').addEventListener('click', () => game.toggleFlareMode());
+      document.getElementById('btnClearTargets').addEventListener('click', () => game.clearTargets());
+      document.getElementById('btnFire').addEventListener('click', () => game.firePlayerSalvo());
+
+      // 재시작 및 게임 종료 / 전장 관람 버튼 바인딩
+      document.getElementById('btnRestart').addEventListener('click', () => game.restartGame());
+      document.getElementById('btnExit').addEventListener('click', () => game.exitGame());
+      document.getElementById('btnViewBoard').addEventListener('click', () => game.viewCompletedBoard());
+
+      document.getElementById('btnBarRestart').addEventListener('click', () => game.restartGame());
+      document.getElementById('btnBarExit').addEventListener('click', () => game.exitGame());
+      document.getElementById('btnBarShowModal').addEventListener('click', () => game.showResultModalAgain());
+    });
+  </script>
+</body>
+</html>
