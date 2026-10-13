@@ -539,12 +539,13 @@ class BattlerationGame {
 
   /**
    * 부대 생존 상태에 따른 발사 가능 수량 및 발사 주체 계산:
+   * - 포탄 발사는 화기중대, 대대본부, 3개 중대(1/2/3중대) 중 생존한 부대가 랜덤으로 발사
    * - 기본 (대대본부 & 화기중대 생존): 3발 사격
-   * - 대대본부 완파 시: 화기중대에서 2발 제한 발사
-   * - 화기중대 완파 시: 대대본부에서 2발 제한 발사
-   * - 대대본부, 화기중대 둘 다 완파 시: 각 중대에서 1발 제한 발사
-   * - 모든 중대 완파 시: 기관총 진지 1발 발사
-   * - 위 조건이 실행되지 않는 경우 (모든 부대 전멸): 0발 (게임 종료)
+   * - 대대본부 완파 시: 2발 제한 발사
+   * - 화기중대 완파 시: 2발 제한 발사
+   * - 대대본부, 화기중대 둘 다 완파 시: 1발 제한 발사
+   * - 모든 보병/포격 부대 완파 시: 기관총 진지 1발 발사
+   * - 모든 부대 전멸 시: 0발 (게임 종료)
    */
   getSalvoInfo(isEnemy = false) {
     const units = isEnemy ? this.enemyUnits : this.playerUnits;
@@ -564,26 +565,26 @@ class BattlerationGame {
     if (hqAlive && mortarAlive) {
       return {
         count: 3,
-        originUnit: mortar,
-        desc: '대대본부 & 화기중대 정상 합동 포격 (3발)'
+        originUnit: this.getRandomFiringUnit(isEnemy) || mortar,
+        desc: '화기중대·대대본부·보병중대 무작위 합동 포격 (3발)'
       };
     }
 
-    // 2. 대대본부 완파 시 -> 화기중대에서 2발 제한 발사
+    // 2. 대대본부 완파 시 -> 2발 제한 발사
     if (!hqAlive && mortarAlive) {
       return {
         count: 2,
-        originUnit: mortar,
-        desc: '대대본부 완파! 화기중대 단독 사격 (2발 제한)'
+        originUnit: this.getRandomFiringUnit(isEnemy) || mortar,
+        desc: '대대본부 완파! 화기·보병중대 무작위 포격 (2발 제한)'
       };
     }
 
-    // 3. 화기중대 완파 시 -> 대대본부에서 2발 제한 발사
+    // 3. 화기중대 완파 시 -> 2발 제한 발사
     if (hqAlive && !mortarAlive) {
       return {
         count: 2,
-        originUnit: hq,
-        desc: '화기중대 완파! 대대본부 긴급 예비 포격 (2발 제한)'
+        originUnit: this.getRandomFiringUnit(isEnemy) || hq,
+        desc: '화기중대 완파! 대대본부·보병중대 무작위 포격 (2발 제한)'
       };
     }
 
@@ -591,8 +592,8 @@ class BattlerationGame {
     if (!hqAlive && !mortarAlive && aliveCompanies.length > 0) {
       return {
         count: 1,
-        originUnit: aliveCompanies[0],
-        desc: `사령부/화기 전멸! 잔존 ${aliveCompanies[0].name} 결사항전 (1발 제한)`
+        originUnit: this.getRandomFiringUnit(isEnemy) || aliveCompanies[0],
+        desc: `사령부/화기 전멸! 잔존 보병중대 무작위 포격 (1발 제한)`
       };
     }
 
@@ -611,6 +612,78 @@ class BattlerationGame {
       originUnit: null,
       desc: '포격 능력 완전 상실 (전멸)'
     };
+  }
+
+  /**
+   * 포탄을 발사할 부대 무작위 선택:
+   * 화기중대, 대대본부, 3개 중대(1/2/3중대) 중 생존한 부대에서 무작위(랜덤)로 선택.
+   * 모든 보병/포격 부대 완파 시 잔존 기관총 진지에서 선택.
+   */
+  getRandomFiringUnit(isEnemy = false) {
+    const units = isEnemy ? this.enemyUnits : this.playerUnits;
+
+    // 1. 화기중대, 대대본부, 3개 중대 중 살아있는 부대
+    const shellUnits = units.filter(u =>
+      ['MORTAR', 'HQ', 'ALPHA', 'BRAVO', 'CHARLIE'].includes(u.type) && !u.isDestroyed
+    );
+
+    if (shellUnits.length > 0) {
+      const idx = Math.floor(Math.random() * shellUnits.length);
+      return shellUnits[idx];
+    }
+
+    // 2. 모든 포격 부대 완파 시 잔존 기관총 진지
+    const mgUnits = units.filter(u => u.type.startsWith('MG') && !u.isDestroyed);
+    if (mgUnits.length > 0) {
+      const idx = Math.floor(Math.random() * mgUnits.length);
+      return mgUnits[idx];
+    }
+
+    return null;
+  }
+
+  /**
+   * 일제 포격(Salvo) 시 각 포탄마다 발사할 부대들을 무작위(랜덤)로 배정:
+   * 화기중대, 대대본부, 3개 중대(1/2/3중대) 중 생존한 부대들 중에서 무작위 셔플하여 할당
+   */
+  getFiringUnitsForSalvo(count, isEnemy = false) {
+    const units = isEnemy ? this.enemyUnits : this.playerUnits;
+
+    const shellUnits = units.filter(u =>
+      ['MORTAR', 'HQ', 'ALPHA', 'BRAVO', 'CHARLIE'].includes(u.type) && !u.isDestroyed
+    );
+
+    let pool = shellUnits;
+    if (pool.length === 0) {
+      pool = units.filter(u => u.type.startsWith('MG') && !u.isDestroyed);
+    }
+
+    if (pool.length === 0) {
+      return Array(count).fill(null);
+    }
+
+    // 후보 부대 무작위 셔플
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    const result = [];
+    for (let i = 0; i < count; i++) {
+      result.push(shuffled[i % shuffled.length]);
+    }
+    return result;
+  }
+
+  /**
+   * 유닛의 중심 픽셀 좌표 계산
+   */
+  getUnitCenterCoords(unit, isEnemy = false) {
+    if (!unit) {
+      return {
+        x: this.renderer.offsetX + 400,
+        y: this.renderer.offsetY + (isEnemy ? 80 : 450)
+      };
+    }
+    const x = this.renderer.offsetX + unit.col * this.renderer.cellSize + (unit.width * this.renderer.cellSize) / 2;
+    const y = this.renderer.offsetY + unit.row * this.renderer.cellSize + (unit.height * this.renderer.cellSize) / 2;
+    return { x, y };
   }
 
   getSalvoCapacity(isEnemy = false) {
@@ -729,19 +802,25 @@ class BattlerationGame {
     this.isFiringAnimation = true;
     document.getElementById('btnFire').disabled = true;
 
-    const salvoInfo = this.getSalvoInfo(false);
-    const originUnit = salvoInfo.originUnit || this.playerUnits[0];
-    const weaponType = (originUnit && originUnit.type && originUnit.type.startsWith('MG')) ? 'MG' : '81MM';
-    const startX = this.renderer.offsetX + (originUnit ? originUnit.col * this.renderer.cellSize + 20 : 400);
-    const startY = this.renderer.offsetY + (originUnit ? originUnit.row * this.renderer.cellSize + 20 : 450);
-
     const targets = [...this.selectedTargets];
     this.selectedTargets = [];
     this.updateBattleUI();
 
+    // 각 포탄별로 발사할 부대 무작위 배정 (화기중대, 대대본부, 3개 중대 등)
+    const firingUnits = this.getFiringUnitsForSalvo(targets.length, false);
     let completedShots = 0;
+    let accumDelay = 0;
 
     targets.forEach((t, idx) => {
+      const firingUnit = firingUnits[idx] || this.getRandomFiringUnit(false);
+      const weaponType = (firingUnit && firingUnit.type && firingUnit.type.startsWith('MG')) ? 'MG' : '81MM';
+      const coords = this.getUnitCenterCoords(firingUnit, false);
+      const startX = coords.x;
+      const startY = coords.y;
+
+      const delay = accumDelay;
+      accumDelay += (weaponType === 'MG' ? 650 : 350);
+
       setTimeout(() => {
         const cell = this.enemyGrid[t.r][t.c];
         const isHitTarget = cell.unit !== null;
@@ -759,9 +838,12 @@ class BattlerationGame {
           this.sfx.playWhistle();
         }
 
+        const unitName = firingUnit ? firingUnit.name : '아군 포대';
+        this.log(`[포탄 발사] [${unitName}] -> 목표 구역 (${t.c + 1}, ${String.fromCharCode(65 + t.r)})`, 'player-action');
+
         this.renderer.addProjectile(
-          startX + (idx * 8),
-          startY,
+          startX + (Math.random() - 0.5) * 6,
+          startY + (Math.random() - 0.5) * 6,
           t.c,
           t.r,
           isHitTarget && !isBlindSpot,
@@ -780,7 +862,7 @@ class BattlerationGame {
           },
           weaponType
         );
-      }, idx * (weaponType === 'MG' ? 650 : 300));
+      }, delay);
     });
   }
 
@@ -994,14 +1076,21 @@ class BattlerationGame {
       return;
     }
 
-    const originUnit = enemySalvo.originUnit || this.enemyUnits[0];
-    const weaponType = (originUnit && originUnit.type && originUnit.type.startsWith('MG')) ? 'MG' : '81MM';
-    const startX = this.renderer.offsetX + (originUnit ? originUnit.col * this.renderer.cellSize + 20 : 400);
-    const startY = this.renderer.offsetY + (originUnit ? originUnit.row * this.renderer.cellSize + 10 : 80);
-
+    // 각 포탄별로 발사할 적 부대 무작위 배정 (화기중대, 대대본부, 3개 중대 등)
+    const firingUnits = this.getFiringUnitsForSalvo(targets.length, true);
     let completedShots = 0;
+    let accumDelay = 0;
 
     targets.forEach((t, idx) => {
+      const firingUnit = firingUnits[idx] || this.getRandomFiringUnit(true);
+      const weaponType = (firingUnit && firingUnit.type && firingUnit.type.startsWith('MG')) ? 'MG' : '81MM';
+      const coords = this.getUnitCenterCoords(firingUnit, true);
+      const startX = coords.x;
+      const startY = coords.y;
+
+      const delay = accumDelay;
+      accumDelay += (weaponType === 'MG' ? 650 : 350);
+
       setTimeout(() => {
         const cell = this.playerGrid[t.r - 10][t.c];
         const isHitTarget = cell.unit !== null;
@@ -1019,9 +1108,12 @@ class BattlerationGame {
           this.sfx.playWhistle();
         }
 
+        const enemyUnitName = firingUnit ? firingUnit.name : '적군 포대';
+        this.log(`[적 포탄 발사] [적 ${enemyUnitName}] -> 아군 구역 (${t.c + 1}, ${String.fromCharCode(65 + t.r)})`, 'enemy-action');
+
         this.renderer.addProjectile(
-          startX + (idx * 8),
-          startY,
+          startX + (Math.random() - 0.5) * 6,
+          startY + (Math.random() - 0.5) * 6,
           t.c,
           t.r,
           isHitTarget && !isBlindSpot,
@@ -1040,7 +1132,7 @@ class BattlerationGame {
           },
           weaponType
         );
-      }, idx * (weaponType === 'MG' ? 650 : 350));
+      }, delay);
     });
   }
 

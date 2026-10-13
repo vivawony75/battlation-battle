@@ -95,7 +95,7 @@ class GameRenderer {
       targetCol,
       targetRow,
       progress: 0,
-      speed: 0.0055 + Math.random() * 0.001, // 더 천천히 웅장하게 날아가도록 대폭 감속 (약 2.8초 비행)
+      speed: 0.0067 + Math.random() * 0.0011, // 포탄 비행 속도 (약 2.3초 비행)
       heightMax: 155 + Math.random() * 25,  // 웅장한 포물선 고도
       trail: [],
       isHit,
